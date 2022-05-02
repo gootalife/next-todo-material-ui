@@ -1,17 +1,25 @@
-import { Navbar, Container, Nav, NavDropdown } from 'react-bootstrap'
-import Link from 'next/link'
-import { path } from 'utils/path'
+import { AppBar, Button, Container, IconButton, Toolbar, Typography } from '@mui/material'
+import { Menu } from '@mui/icons-material'
+import { useState } from 'react'
+import { DrawerMenu } from './DrawerMenu'
 
 export const Header = () => {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const toggleDrawer = () => setDrawerOpen(!drawerOpen)
+
   return (
     <>
-      <Navbar collapseOnSelect expand="sm" bg="dark" variant="dark">
-        <Container>
-          <Link href={path.top} passHref>
-            <Navbar.Brand href={path.top}>ToDoApp</Navbar.Brand>
-          </Link>
-        </Container>
-      </Navbar>
+      <AppBar position="static">
+        <Toolbar>
+          <IconButton size="large" edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }} onClick={toggleDrawer}>
+            <Menu />
+          </IconButton>
+          <Typography variant="h5" component="div">
+            ToDoApp
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <DrawerMenu open={drawerOpen} onClose={toggleDrawer}></DrawerMenu>
     </>
   )
 }

@@ -1,35 +1,52 @@
-import { Task } from '@prisma/client'
 import { useState } from 'react'
-import { Alert, Button, Form, Modal } from 'react-bootstrap'
+import { Task } from '@prisma/client'
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material'
+import { LoadingButton } from '@mui/lab'
+import { Cancel, Check, Delete, Edit } from '@mui/icons-material'
 
 type Props = {
   task: Task
+  setStatusText: (text: string | undefined) => void
+  mutate: () => void
 }
 
 export const ToDoItem = (props: Props) => {
-  const [showUpdate, setShowUpdate] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [isOk, setIsOk] = useState(true)
+  const [isOpenForm, setIsOpenForm] = useState(false)
+  const [isStatusOk, setIsStatusOk] = useState(true)
+  const [alertDialogText, setAlertDialogText] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isOpenConfirm, setIsOpenConfirm] = useState(false)
 
-  const handleShowUpdate = (task: Task) => {
-    setShowUpdate(true)
-    setIsOk(true)
+  const handleOpenFormDialog = (task: Task) => {
+    setIsOpenForm(true)
+    setIsStatusOk(true)
     setTitle(task.title)
     setContent(task.content)
+    props.setStatusText(undefined)
   }
 
-  const handleCloseUpdate = () => {
-    setShowUpdate(false)
+  const handleCloseFormDialog = () => {
+    setIsOpenForm(false)
   }
 
-  const handleUpdate = async (uuid: string) => {
-    alert(uuid)
-    if (!confirm('Update this?')) {
+  const handleUpdate = async (task: Task) => {
+    setIsLoading(true)
+    if (title === '' || content === '') {
+      setIsStatusOk(false)
+      setAlertDialogText('Input is invalid.')
+      setIsLoading(false)
+      return
+    }
+    if (title === task.title && content === task.content) {
+      setIsStatusOk(false)
+      setAlertDialogText('Not edited.')
+      setIsLoading(false)
       return
     }
     const param: Partial<Task> = {
-      uuid: uuid,
+      uuid: task.uuid,
       title: title,
       content: content
     }
@@ -42,23 +59,35 @@ export const ToDoItem = (props: Props) => {
         body: JSON.stringify(param)
       })
       if (res.ok) {
-        setIsOk(true)
-        setShowUpdate(false)
-        alert('Updated.')
+        setIsStatusOk(true)
+        setIsOpenForm(false)
+        props.setStatusText('Update completed.')
+        props.mutate()
       } else {
-        setIsOk(false)
-        alert('Failed.')
+        setIsStatusOk(false)
+        setAlertDialogText('Failed.')
       }
     } catch (err) {
-      setIsOk(false)
-      alert('Failed.')
+      setIsStatusOk(false)
+      setAlertDialogText('Failed.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
+  const handleOpenConfirmDialog = (task: Task) => {
+    setIsOpenConfirm(true)
+    setIsStatusOk(true)
+    setTitle(task.title)
+    setContent(task.content)
+    props.setStatusText(undefined)
+  }
+
+  const handleCloseConfirmDialog = () => {
+    setIsOpenConfirm(false)
+  }
+
   const handleDelete = async (uuid: string) => {
-    if (!confirm('Delete this?')) {
-      return
-    }
     try {
       const param: Partial<Task> = {
         uuid: uuid
@@ -71,84 +100,116 @@ export const ToDoItem = (props: Props) => {
         body: JSON.stringify(param)
       })
       if (res.ok) {
-        setIsOk(true)
-        alert('Deleted.')
+        setIsStatusOk(true)
+        props.setStatusText('Delete completed.')
+        props.mutate()
       } else {
-        setIsOk(false)
-        alert('Failed.')
+        setIsStatusOk(false)
+        setAlertDialogText('Failed.')
       }
     } catch (err) {
-      setIsOk(false)
-      alert('Failed.')
+      setIsStatusOk(false)
+      setAlertDialogText('Failed.')
     }
   }
 
   return (
     <>
-      <hr />
       <h3>{props.task.title}</h3>
       <div>{props.task.content}</div>
-      <div>{props.task.uuid}</div>
 
       <Button
-        variant="primary"
+        sx={{ mr: 1 }}
+        variant="contained"
         onClick={() => {
-          handleShowUpdate(props.task)
+          handleOpenFormDialog(props.task)
         }}
+        startIcon={<Edit />}
       >
-        Update
+        Edit
       </Button>
-      <Modal
-        show={showUpdate}
-        onHide={() => {
-          handleCloseUpdate()
-        }}
-        backdrop="static"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Update ToDo</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Title</Form.Label>
-              <Form.Control type="title" placeholder="title" onChange={(e) => setTitle(e.target.value)} defaultValue={props.task.title} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Content</Form.Label>
-              <Form.Control type="text" placeholder="content" onChange={(e) => setContent(e.target.value)} defaultValue={props.task.content} />
-            </Form.Group>
-          </Form>
-          {!isOk && <Alert variant="danger">An error occurred.</Alert>}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              handleCloseUpdate()
+      <Dialog open={isOpenForm} onClose={handleCloseFormDialog}>
+        <DialogTitle>Update ToDo</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Please enter the items.</DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            type="text"
+            fullWidth
+            variant="outlined"
+            required
+            focused
+            defaultValue={title}
+            onChange={(e) => {
+              setTitle(e.currentTarget.value)
             }}
-          >
-            Close
-          </Button>
-          <Button
-            variant="primary"
+          />
+          <TextField
+            margin="dense"
+            label="Content"
+            type="text"
+            fullWidth
+            variant="outlined"
+            required
+            focused
+            defaultValue={content}
+            onChange={(e) => {
+              setContent(e.currentTarget.value)
+            }}
+          />
+          {!isStatusOk && <Alert severity="error">{alertDialogText}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <LoadingButton
+            variant="contained"
             onClick={async () => {
-              await handleUpdate(props.task.uuid)
+              await handleUpdate(props.task)
             }}
+            startIcon={<Check />}
+            loading={isLoading}
           >
-            Save
+            Update
+          </LoadingButton>
+          <Button variant="outlined" onClick={handleCloseFormDialog} startIcon={<Cancel />}>
+            Cancel
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
+
       <Button
-        variant="primary"
-        onClick={async () => {
-          await handleDelete(props.task.uuid)
+        variant="contained"
+        onClick={() => {
+          handleOpenConfirmDialog(props.task)
         }}
+        startIcon={<Delete />}
       >
         Delete
       </Button>
+      <Dialog open={isOpenConfirm} onClose={handleCloseConfirmDialog}>
+        <DialogTitle>Confirm</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Delete this?</DialogContentText>
+          {!isStatusOk && <Alert severity="error">{alertDialogText}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <LoadingButton
+            variant="contained"
+            onClick={async () => {
+              await handleDelete(props.task.uuid)
+            }}
+            startIcon={<Delete />}
+            loading={isLoading}
+          >
+            Delete
+          </LoadingButton>
+          <Button variant="outlined" onClick={handleCloseConfirmDialog} startIcon={<Cancel />}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <hr />
     </>
   )
 }

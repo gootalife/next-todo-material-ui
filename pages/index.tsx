@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import { Container } from 'react-bootstrap'
 import { ToDo } from 'components/ToDo'
 
 const Index = () => {
@@ -8,10 +7,8 @@ const Index = () => {
       <Head>
         <title>ToDoApp</title>
       </Head>
-      <Container>
-        <h1>ToDoApp</h1>
-        <ToDo></ToDo>
-      </Container>
+      <h1>ToDoApp</h1>
+      <ToDo></ToDo>
     </>
   )
 }

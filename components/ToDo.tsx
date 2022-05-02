@@ -1,29 +1,41 @@
+import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, TextField } from '@mui/material'
+import { LoadingButton } from '@mui/lab'
 import { Task } from '@prisma/client'
 import { useState } from 'react'
-import { Alert, Button, Form, Modal } from 'react-bootstrap'
 import useSWR from 'swr'
-import { ToDoItem } from './ToDoItem'
+import { ToDoItem } from 'components/ToDoItem'
+import { Cancel, LibraryAdd, Save } from '@mui/icons-material'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const url = '/api/task'
 
 export const ToDo = () => {
-  const [showAdd, setShowAdd] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [isOk, setIsOk] = useState(true)
-  const { data: tasks } = useSWR<Task[], Error>('/api/task', fetcher)
+  const [success, setSuccess] = useState(true)
+  const { data: tasks, error, mutate } = useSWR<Task[]>(url, fetcher)
+  const [alertDialogText, setAlertDialogText] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [statusText, setStatusText] = useState<string | undefined>(undefined)
 
-  const handleShowAdd = () => {
-    setShowAdd(true)
-    setIsOk(true)
+  const handleOpenDialog = () => {
+    setSuccess(true)
+    setIsOpen(true)
+    setStatusText(undefined)
   }
 
-  const handleCloseAdd = () => {
-    setShowAdd(false)
+  const handleCloseDialog = () => {
+    setSuccess(true)
+    setIsOpen(false)
   }
 
   const handleSave = async () => {
-    if (!confirm('Add this?')) {
+    setIsLoading(true)
+    if (title === '' || content === '') {
+      setSuccess(false)
+      setAlertDialogText('Input is invalid.')
+      setIsLoading(false)
       return
     }
     const param: Partial<Task> = {
@@ -39,80 +51,107 @@ export const ToDo = () => {
         body: JSON.stringify(param)
       })
       if (res.ok) {
-        setIsOk(true)
-        setShowAdd(false)
-        alert('Added.')
+        setStatusText('Save completed.')
+        setSuccess(true)
+        setIsOpen(false)
+        mutate(tasks)
       } else {
-        setIsOk(false)
-        alert('Failed.')
+        setSuccess(false)
+        setAlertDialogText('Input is invalid.')
       }
     } catch (err) {
-      setIsOk(false)
-      alert('Failed.')
+      setSuccess(false)
+      setAlertDialogText('Failed.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
     <>
-      {tasks && (
-        <>
-          {tasks.map((task) => (
-            <ToDoItem key={task.uuid} task={task}></ToDoItem>
-          ))}
-        </>
+      <Grid container justifyContent="flex-end">
+        <Button variant="contained" onClick={handleOpenDialog} startIcon={<LibraryAdd />}>
+          Add
+        </Button>
+      </Grid>
+
+      {success && !isOpen && statusText && (
+        <Alert sx={{ mt: 1 }} severity="success">
+          {statusText}
+        </Alert>
       )}
       <hr />
-      <Button
-        variant="primary"
-        onClick={(e) => {
-          handleShowAdd()
-        }}
-      >
-        Add
-      </Button>
-      <Modal
-        show={showAdd}
-        onHide={() => {
-          handleCloseAdd()
-        }}
-        backdrop="static"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>New ToDo</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Title</Form.Label>
-              <Form.Control type="title" placeholder="title" onChange={(e) => setTitle(e.target.value)} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Content</Form.Label>
-              <Form.Control type="text" placeholder="content" onChange={(e) => setContent(e.target.value)} />
-            </Form.Group>
-          </Form>
-          {!isOk && <Alert variant="danger">An error occurred.</Alert>}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              handleCloseAdd()
+      {(() => {
+        if (!tasks && !error) {
+          return <CircularProgress color="inherit" />
+        } else {
+          return (
+            <>
+              {tasks && (
+                <>
+                  {tasks.map((task) => (
+                    <ToDoItem
+                      key={task.uuid}
+                      task={task}
+                      setStatusText={setStatusText}
+                      mutate={() => {
+                        mutate(tasks)
+                      }}
+                    ></ToDoItem>
+                  ))}
+                </>
+              )}
+            </>
+          )
+        }
+      })()}
+      <Dialog open={isOpen} onClose={handleOpenDialog}>
+        <DialogTitle>New ToDo</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Please enter the items.</DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            type="text"
+            fullWidth
+            variant="outlined"
+            required
+            focused
+            onChange={(e) => {
+              setTitle(e.currentTarget.value)
             }}
-          >
-            Close
-          </Button>
-          <Button
-            variant="primary"
-            onClick={async (e) => {
+          />
+          <TextField
+            margin="dense"
+            label="Content"
+            type="text"
+            fullWidth
+            variant="outlined"
+            required
+            focused
+            onChange={(e) => {
+              setContent(e.currentTarget.value)
+            }}
+          />
+          {!success && <Alert severity="error">{alertDialogText}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <LoadingButton
+            onClick={async () => {
               await handleSave()
             }}
+            variant="contained"
+            loading={isLoading}
+            startIcon={<Save />}
           >
             Save
+          </LoadingButton>
+          <Button onClick={handleCloseDialog} variant="outlined" startIcon={<Cancel />}>
+            Cancel
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }
