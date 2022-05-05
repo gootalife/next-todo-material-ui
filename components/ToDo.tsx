@@ -4,7 +4,9 @@ import { Task } from '@prisma/client'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { ToDoItem } from 'components/ToDoItem'
-import { Cancel, LibraryAdd, Save } from '@mui/icons-material'
+import { Cancel, Check, LibraryAdd, Save } from '@mui/icons-material'
+import { AlertDialog } from './AlertDialog'
+import { ConfirmDialog } from './ConfirmDialog'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 const url = '/api/task'
@@ -67,8 +69,34 @@ export const ToDo = () => {
     }
   }
 
+  const [isTestOpen, setIsTestOpen] = useState(false)
   return (
     <>
+      <Button
+        variant="contained"
+        onClick={() => {
+          setIsTestOpen(true)
+        }}
+        startIcon={<Check />}
+      >
+        Test
+      </Button>
+      <ConfirmDialog
+        isOpen={isTestOpen}
+        title={<>title</>}
+        text={
+          <Alert sx={{ mt: 1 }} severity="success">
+            text
+          </Alert>
+        }
+        onClose={() => {
+          setIsTestOpen(false)
+        }}
+        onExecute={() => {
+          setIsTestOpen(false)
+        }}
+      />
+
       <Grid container justifyContent="flex-end">
         <Button variant="contained" onClick={handleOpenDialog} startIcon={<LibraryAdd />}>
           Add
